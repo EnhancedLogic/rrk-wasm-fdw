@@ -42,7 +42,7 @@ impl Guest for ExampleFdw {
         "^0.1.0".to_string()
     }
 
-    fn init(ctx: &Context) -> FdwResult {
+   fn init(ctx: &Context) -> FdwResult {
     Self::init_instance();
     let this = Self::this_mut();
 
@@ -58,6 +58,7 @@ impl Guest for ExampleFdw {
 
     // get sheet id from foreign table options and make the request URL
     let opts = ctx.get_options(OptionsType::Table);
+    let spreadsheet_id = opts.require("spreadsheet_id")?;
     let sheet_id = opts.require("sheet_id")?;
     let url = format!("{}/{}/gviz/tq?tqx=out:json", this.base_url, sheet_id);
 
@@ -94,8 +95,7 @@ impl Guest for ExampleFdw {
 
     Ok(())
 }
-
-    fn iter_scan(ctx: &Context, row: &Row) -> Result<Option<u32>, FdwError> {
+fn iter_scan(ctx: &Context, row: &Row) -> Result<Option<u32>, FdwError> {
     let this = Self::this_mut();
 
     // if all source rows are consumed, stop data scan
