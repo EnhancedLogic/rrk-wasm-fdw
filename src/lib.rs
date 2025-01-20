@@ -1,6 +1,6 @@
 #[allow(warnings)]
 mod bindings;
-use chrono::NaiveDate;
+use time::Date;
 use serde_json::Value as JsonValue;
 
 use bindings::{
@@ -22,18 +22,9 @@ struct ExampleFdw {
 // pointer for the static FDW instance
 static mut INSTANCE: *mut ExampleFdw = std::ptr::null_mut::<ExampleFdw>();
 
-fn calculate_seconds_since_epoch(year: i32, month: u32, day: u32) -> i64 {
-    // Use from_ymd_opt to handle invalid date input safely
-    let date = NaiveDate::from_ymd_opt(year, month, day).expect("Invalid date provided"); // Handle invalid dates
-
-    // Define the Unix epoch start date
-    let epoch = NaiveDate::from_ymd_opt(1970, 1, 1).expect("Epoch date is invalid");
-
-    // Calculate the signed duration between the two dates
-    let duration = date.signed_duration_since(epoch);
-
-    // Return the total seconds between the dates
-    duration.num_seconds()
+fn calculate_seconds_since_epoch(year: i32, month: u8, day: u8) -> i64 {
+    let date = Date::from_calendar_date(year, month.try_into().unwrap(), day).unwrap();
+    date.midnight().assume_utc().unix_timestamp()
 }
 
 impl ExampleFdw {
@@ -148,8 +139,8 @@ impl Guest for ExampleFdw {
                             if parts.len() == 3 {
                                 if let (Ok(year), Ok(month), Ok(day)) = (
                                     parts[0].parse::<i32>(),
-                                    parts[1].parse::<u32>(),
-                                    parts[2].parse::<u32>(),
+                                    parts[1].parse::<u8>(),
+                                    parts[2].parse::<u8>(),
                                 ) {
                                     let epoch_seconds =
                                         calculate_seconds_since_epoch(year, month, day);
