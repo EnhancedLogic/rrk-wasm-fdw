@@ -1,4 +1,4 @@
-package enhancedlogic:rrk-fdw@0.4.4;
+package enhancedlogic:rrk-fdw@0.4.5;
 
 world example {
     import supabase:wrappers/http@0.1.0;

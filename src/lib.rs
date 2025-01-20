@@ -1,6 +1,7 @@
 #[allow(warnings)]
 mod bindings;
 use serde_json::Value as JsonValue;
+use chrono::{NaiveDate, Timelike};
 
 use bindings::{
     exports::supabase::wrappers::routines::Guest,
@@ -20,6 +21,13 @@ struct ExampleFdw {
 
 // pointer for the static FDW instance
 static mut INSTANCE: *mut ExampleFdw = std::ptr::null_mut::<ExampleFdw>();
+
+fn calculate_seconds_since_epoch(year: i32, month: u32, day: u32) -> i64 {
+    let date = NaiveDate::from_ymd(year, month, day);
+    let epoch = NaiveDate::from_ymd(1970, 1, 1);
+    let duration = date.signed_duration_since(epoch);
+    duration.num_seconds()
+}
 
 impl ExampleFdw {
     // initialise FDW instance
@@ -131,17 +139,16 @@ impl Guest for ExampleFdw {
                         {
                             let parts: Vec<_> = captures.split(',').collect();
                             if parts.len() == 3 {
-                                // Parse year, month, and day
                                 if let (Ok(year), Ok(month), Ok(day)) = (
                                     parts[0].parse::<i32>(),
                                     parts[1].parse::<u32>(),
                                     parts[2].parse::<u32>(),
                                 ) {
-                                    // Calculate the number of seconds since epoch
-                                    let seconds_since_epoch =
+                                    let epoch_seconds =
                                         calculate_seconds_since_epoch(year, month, day);
-                                    // Return the epoch value in seconds wrapped in a Cell::Date
-                                    return Some(Cell::Date(seconds_since_epoch));
+
+                                    // Wrap the epoch seconds into Cell::Date
+                                    return Some(Cell::Date(epoch_seconds));
                                 }
                             }
                         }
