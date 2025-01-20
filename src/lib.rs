@@ -1,12 +1,12 @@
 #[allow(warnings)]
 mod bindings;
-use time::Date;
+use regex::Regex;
 use serde_json::Value as JsonValue;
 
 use bindings::{
     exports::supabase::wrappers::routines::Guest,
     supabase::wrappers::{
-        http,
+        http, time,
         types::{Cell, Context, FdwError, FdwResult, OptionsType, Row, TypeOid},
         utils,
     },
@@ -18,14 +18,33 @@ struct ExampleFdw {
     src_rows: Vec<JsonValue>,
     src_idx: usize,
 }
+fn parse_date_from_interface(src: &str) -> Option<Cell> {
+    // Regex to match Date(YYYY,M,D) format
+    let re = Regex::new(r"Date\((\d{4}),(\d{1,2}),(\d{1,2})\)").unwrap();
+
+    if let Some(caps) = re.captures(src) {
+        // Extract year, month, and day from the capture groups
+        let year: i32 = caps[1].parse().ok()?;
+        let month: u32 = caps[2].parse().ok()?;
+        let day: u32 = caps[3].parse().ok()?;
+
+        // Format the extracted date components into the expected format
+        let formatted_str = format!("Date({},{},{})", year, month, day);
+
+        // Call the interface's parse-from-str function
+        let time_result = time::parse_from_str(formatted_str.as_str(), "Date(YYYY,MM,DD)");
+
+        match time_result {
+            Ok(epoch_microseconds) => Some(Cell::Date(epoch_microseconds)),
+            Err(_) => None,
+        }
+    } else {
+        None
+    }
+}
 
 // pointer for the static FDW instance
 static mut INSTANCE: *mut ExampleFdw = std::ptr::null_mut::<ExampleFdw>();
-
-fn calculate_seconds_since_epoch(year: i32, month: u8, day: u8) -> i64 {
-    let date = Date::from_calendar_date(year, month.try_into().unwrap(), day).unwrap();
-    date.midnight().assume_utc().unix_timestamp()
-}
 
 impl ExampleFdw {
     // initialise FDW instance
@@ -130,28 +149,10 @@ impl Guest for ExampleFdw {
                 let cell = match tgt_col.type_oid() {
                     TypeOid::I64 => src.as_f64().map(|v| Cell::I64(v as _)),
                     TypeOid::String => src.as_str().map(|v| Cell::String(v.to_owned())),
-                    TypeOid::Date => src.as_str().and_then(|v| {
-                        // Parse the date string in the format Date(year,month,day)
-                        if let Some(captures) =
-                            v.strip_prefix("Date(").and_then(|s| s.strip_suffix(")"))
-                        {
-                            let parts: Vec<_> = captures.split(',').collect();
-                            if parts.len() == 3 {
-                                if let (Ok(year), Ok(month), Ok(day)) = (
-                                    parts[0].parse::<i32>(),
-                                    parts[1].parse::<u8>(),
-                                    parts[2].parse::<u8>(),
-                                ) {
-                                    let epoch_seconds =
-                                        calculate_seconds_since_epoch(year, month, day);
-
-                                    // Wrap the epoch seconds into Cell::Date
-                                    return Some(Cell::Date(epoch_seconds));
-                                }
-                            }
-                        }
-                        None
-                    }),
+                    TypeOid::Date => {
+                        // Use the updated date parsing function from the interface
+                        parse_date_from_interface(src.as_str().unwrap_or(""))
+                    }
                     _ => {
                         return Err(format!(
                             "column {} data type is not supported",

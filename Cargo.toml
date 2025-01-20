@@ -1,6 +1,6 @@
 [package]
 name = "rrk_wasm_fdw"
-version = "0.4.7"
+version = "0.4.8"
 edition = "2021"
 
 [lib]
@@ -14,6 +14,7 @@ lto = true
 wit-bindgen-rt = "0.26.0"
 serde_json = "1.0"
 time = { version = "0.3", default-features = false }
+regex = "1.11.1"
 
 [package.metadata.component]
 package = "enhancedlogic:rrk-fdw"
