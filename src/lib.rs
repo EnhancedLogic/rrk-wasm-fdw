@@ -124,32 +124,7 @@ impl Guest for ExampleFdw {
                 let cell = match tgt_col.type_oid() {
                     TypeOid::I64 => src.as_f64().map(|v| Cell::I64(v as _)),
                     TypeOid::String => src.as_str().map(|v| Cell::String(v.to_owned())),
-                    TypeOid::Date => {
-                        if let Some(s) = src.as_str() {
-                            // Parse the string assuming RFC 3339 format, truncate time if necessary
-                            let ts = time::parse_from_rfc3339(s)?;
-                            let date_only = ts / 1_000_000; // Adjust if necessary to remove time part
-                            Some(Cell::Date(date_only))
-                        } else {
-                            None
-                        }
-                    }
-                    TypeOid::Timestamp => {
-                        if let Some(s) = src.as_str() {
-                            let ts = time::parse_from_rfc3339(s)?;
-                            Some(Cell::Timestamp(ts))
-                        } else {
-                            None
-                        }
-                    }
-                    TypeOid::Timestamptz => {
-                        if let Some(s) = src.as_str() {
-                            let ts = time::parse_from_rfc3339(s)?;
-                            Some(Cell::Timestamptz(ts))
-                        } else {
-                            None
-                        }
-                    }
+                    TypeOid::Date => src.as_str().map(|v| Cell::Date(v.to_owned)),
                     _ => {
                         return Err(format!(
                             "column {} data type is not supported",
