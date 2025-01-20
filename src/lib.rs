@@ -1,12 +1,12 @@
 #[allow(warnings)]
 mod bindings;
+use chrono::NaiveDate;
 use serde_json::Value as JsonValue;
-use chrono::{NaiveDate, Timelike};
 
 use bindings::{
     exports::supabase::wrappers::routines::Guest,
     supabase::wrappers::{
-        http, time,
+        http,
         types::{Cell, Context, FdwError, FdwResult, OptionsType, Row, TypeOid},
         utils,
     },
@@ -23,9 +23,16 @@ struct ExampleFdw {
 static mut INSTANCE: *mut ExampleFdw = std::ptr::null_mut::<ExampleFdw>();
 
 fn calculate_seconds_since_epoch(year: i32, month: u32, day: u32) -> i64 {
-    let date = NaiveDate::from_ymd(year, month, day);
-    let epoch = NaiveDate::from_ymd(1970, 1, 1);
+    // Use from_ymd_opt to handle invalid date input safely
+    let date = NaiveDate::from_ymd_opt(year, month, day).expect("Invalid date provided"); // Handle invalid dates
+
+    // Define the Unix epoch start date
+    let epoch = NaiveDate::from_ymd_opt(1970, 1, 1).expect("Epoch date is invalid");
+
+    // Calculate the signed duration between the two dates
     let duration = date.signed_duration_since(epoch);
+
+    // Return the total seconds between the dates
     duration.num_seconds()
 }
 
