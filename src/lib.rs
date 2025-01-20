@@ -1,5 +1,6 @@
 #[allow(warnings)]
 mod bindings;
+use chrono::{NaiveDate, NaiveDateTime, Datelike};
 use serde_json::Value as JsonValue;
 
 use bindings::{
@@ -32,6 +33,10 @@ impl ExampleFdw {
 
     fn this_mut() -> &'static mut Self {
         unsafe { &mut (*INSTANCE) }
+    }
+    fn parse_google_sheet_date(date_str: &str) -> Result<NaiveDate, FdwError> {
+        NaiveDate::parse_from_str(date_str, "%d-%b-%y")
+            .map_err(|e| format!("Failed to parse date: {}", e).into())
     }
 }
 
@@ -124,6 +129,10 @@ impl Guest for ExampleFdw {
             let cell = match tgt_col.type_oid() {
                 TypeOid::I64 => src.as_f64().map(|v| Cell::I64(v as _)),
                 TypeOid::String => src.as_str().map(|v| Cell::String(v.to_owned())),
+                TypeOid::Date => src.as_str()
+                        .map(|v| Self::parse_google_sheet_date(v)
+                        .map(|dt| Cell::Date(dt)))
+                        .transpose()?,
                 _ => {
                     return Err(format!(
                         "column {} data type is not supported",
