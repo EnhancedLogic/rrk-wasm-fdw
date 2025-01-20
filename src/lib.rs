@@ -124,7 +124,29 @@ impl Guest for ExampleFdw {
                 let cell = match tgt_col.type_oid() {
                     TypeOid::I64 => src.as_f64().map(|v| Cell::I64(v as _)),
                     TypeOid::String => src.as_str().map(|v| Cell::String(v.to_owned())),
-                    TypeOid::Date => src.as_str().map(|v| Cell::Date(v.to_owned())),
+                    TypeOid::Date => src.as_str().and_then(|v| {
+                        // Parse the date string in the format Date(year,month,day)
+                        if let Some(captures) =
+                            v.strip_prefix("Date(").and_then(|s| s.strip_suffix(")"))
+                        {
+                            let parts: Vec<_> = captures.split(',').collect();
+                            if parts.len() == 3 {
+                                // Parse year, month, and day
+                                if let (Ok(year), Ok(month), Ok(day)) = (
+                                    parts[0].parse::<i32>(),
+                                    parts[1].parse::<u32>(),
+                                    parts[2].parse::<u32>(),
+                                ) {
+                                    // Calculate the number of seconds since epoch
+                                    let seconds_since_epoch =
+                                        calculate_seconds_since_epoch(year, month, day);
+                                    // Return the epoch value in seconds wrapped in a Cell::Date
+                                    return Some(Cell::Date(seconds_since_epoch));
+                                }
+                            }
+                        }
+                        None
+                    }),
                     _ => {
                         return Err(format!(
                             "column {} data type is not supported",
