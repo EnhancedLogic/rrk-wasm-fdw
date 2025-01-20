@@ -32,7 +32,7 @@ fn parse_date_from_interface(src: &str) -> Option<Cell> {
         let formatted_str = format!("Date({},{},{})", year, month, day);
 
         // Call the interface's parse-from-str function
-        let time_result = time::parse_from_str(formatted_str.as_str(), "Date(YYYY,MM,DD)");
+        let time_result = time::parse_from_str(formatted_str.as_str(), "YYYY-MM-DD");
 
         match time_result {
             Ok(epoch_microseconds) => Some(Cell::Date(epoch_microseconds)),
