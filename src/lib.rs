@@ -149,10 +149,8 @@ impl Guest for ExampleFdw {
                 let cell = match tgt_col.type_oid() {
                     TypeOid::I64 => src.as_f64().map(|v| Cell::I64(v as _)),
                     TypeOid::String => src.as_str().map(|v| Cell::String(v.to_owned())),
-                    TypeOid::Date => {
-                        // Use the updated date parsing function from the interface
-                        parse_date_from_interface(src.as_str().unwrap_or(""))
-                    }
+                    TypeOid::Date => parse_date_from_interface(src.as_str().unwrap_or("")),
+
                     _ => {
                         return Err(format!(
                             "column {} data type is not supported",
