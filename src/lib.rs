@@ -19,30 +19,30 @@ struct ExampleFdw {
     src_idx: usize,
 }
 fn parse_date_from_interface(src: &str) -> Option<Cell> {
-    // Regex to match Date(YYYY,M,D) format
     let re = Regex::new(r"Date\((\d{4}),(\d{1,2}),(\d{1,2})\)").unwrap();
 
     if let Some(caps) = re.captures(src) {
-        // Extract year, month, and day from the capture groups
+        // Safely parse year, month, and day
         let year: i32 = caps[1].parse().ok()?;
-        let month: u32 = caps[2].parse().ok()?;
-        let day: u32 = caps[3].parse().ok()?;
+        let month: u32 = caps[2].parse().ok()?; // Adjust 0-based month
+        let day: u32 = caps[3].parse().ok()?; // Adjust 0-based day
 
-        // Format the extracted date components into the expected format
-        let formatted_str = format!("{}-{}-{}", year, month, day);
+        let formatted_str = format!("{:04}-{:02}-{:02}", year, month, day);
+        println!("Formatted date string: {}", formatted_str);
 
-        // Call the interface's parse-from-str function
-        let time_result = time::parse_from_str(formatted_str.as_str(), "YYYY-MM-DD");
-
-        match time_result {
+        // Parse the formatted string into epoch microseconds
+        match time::parse_from_str(&formatted_str, "%Y-%m-%d") {
             Ok(epoch_microseconds) => Some(Cell::Date(epoch_microseconds)),
-            Err(_) => None,
+            Err(e) => {
+                println!("Error parsing date: {}", e);
+                None
+            }
         }
     } else {
+        println!("Regex did not match the input: {}", src);
         None
     }
 }
-
 // pointer for the static FDW instance
 static mut INSTANCE: *mut ExampleFdw = std::ptr::null_mut::<ExampleFdw>();
 
