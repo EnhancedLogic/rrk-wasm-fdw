@@ -19,25 +19,22 @@ struct ExampleFdw {
     src_idx: usize,
 }
 fn parse_date_from_interface(date_str: &str) -> Option<Cell> {
-    // Strip "Date(" and ")" to isolate the date part
-    let clean_date = date_str.trim_start_matches("Date(").trim_end_matches(")");
+    // Transform input to RFC3339 format (e.g., "2024-05-10T00:00:00Z")
+    let formatted_date = date_str
+        .trim_start_matches("Date(")
+        .trim_end_matches(")")
+        .replace(',', '-')
+        + "T00:00:00Z";
 
-    // Define the input format string
-    let fmt = "yyyy,MM,dd";
-
-    // Use parse-from-str to parse the date
-    match time::parse_from_str(clean_date, fmt) {
+    match time::parse_from_rfc3339(&formatted_date) {
         Ok(epoch_us) => {
-            // Convert microseconds to seconds
             let epoch_secs = epoch_us / 1_000_000;
-
-            // Convert back to an RFC3339 string for consistency
             match time::epoch_ms_to_rfc3339(epoch_secs * 1_000) {
                 Ok(rfc3339) => Some(Cell::String(rfc3339)),
-                Err(_) => None, // Handle errors from RFC3339 conversion
+                Err(_) => None,
             }
         }
-        Err(_) => None, // Handle parsing errors
+        Err(_) => None,
     }
 }
 
