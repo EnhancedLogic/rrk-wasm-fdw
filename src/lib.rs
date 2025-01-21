@@ -19,30 +19,43 @@ struct ExampleFdw {
     src_idx: usize,
 }
 fn parse_date_from_interface(src: &str) -> Option<Cell> {
+    use regex::Regex;
+
     let re = Regex::new(r"Date\((\d{4}),(\d{1,2}),(\d{1,2})\)").unwrap();
-
     if let Some(caps) = re.captures(src) {
-        // Safely parse year, month, and day
+        // Extract year, month, and day values
         let year: i32 = caps[1].parse().ok()?;
-        let month: u32 = caps[2].parse().ok()?; // Adjust 0-based month
-        let day: u32 = caps[3].parse().ok()?; // Adjust 0-based day
+        let month_str = &caps[2];
+        let day_str = &caps[3];
 
-        let formatted_str = format!("{:04}-{:02}-{:02}", year, month, day);
-        println!("Formatted date string: {}", formatted_str);
+        // Debug output to check what is captured
+        println!("Captured year: {}, month: {}, day: {}", year, month_str, day_str);
 
-        // Parse the formatted string into epoch microseconds
-        match time::parse_from_str(&formatted_str, "%Y-%m-%d") {
+                // Safely parse month and day
+        let month: u32 = month_str.parse::<u32>().ok()? + 1; // Adjust 0-based month
+        let day: u32 = day_str.parse::<u32>().ok()? + 1; // Adjust 0-based day
+
+        // Debugging output to check the parsed values
+        println!("Parsed date: {}-{:02}-{:02}", year, month, day);
+
+        // Safely format the extracted components
+        let formatted_date = format!("{:04}-{:02}-{:02}", year, month, day);
+
+        // Attempt to convert the formatted string to a PostgreSQL-compatible timestamp
+        match time::parse_from_str(&formatted_date, "%Y-%m-%d") {
             Ok(epoch_microseconds) => Some(Cell::Date(epoch_microseconds)),
             Err(e) => {
-                println!("Error parsing date: {}", e);
+                eprintln!("Failed to parse date '{}': {}", formatted_date, e);
                 None
             }
         }
     } else {
-        println!("Regex did not match the input: {}", src);
+        eprintln!("Input did not match expected format: {}", src);
         None
     }
 }
+
+
 // pointer for the static FDW instance
 static mut INSTANCE: *mut ExampleFdw = std::ptr::null_mut::<ExampleFdw>();
 
