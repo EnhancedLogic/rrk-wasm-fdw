@@ -18,40 +18,39 @@ struct ExampleFdw {
     src_rows: Vec<JsonValue>,
     src_idx: usize,
 }
-fn parse_date_from_interface(src: &str) -> Option<Cell> {
-    use regex::Regex;
-
-    let re = Regex::new(r"Date\((\d{4}),(\d{1,2}),(\d{1,2})\)").unwrap();
-    if let Some(caps) = re.captures(src) {
-        // Extract year, month, and day values
+fn parse_date_from_interface(date_str: &str) -> Option<Cell> {
+    // Match the custom date format "Date(YYYY,MM,DD)"
+    let re = regex::Regex::new(r"Date\((\d+),(\d+),(\d+)\)").unwrap();
+    if let Some(caps) = re.captures(date_str) {
+        // Parse year, month, and day
         let year: i32 = caps[1].parse().ok()?;
-        let month_str = &caps[2];
-        let day_str = &caps[3];
+        let month: u32 = caps[2].parse().ok()?; // Already 1-based
+        let day: u32 = caps[3].parse().ok()?;
 
-        // Debug output to check what is captured
-        println!("Captured year: {}, month: {}, day: {}", year, month_str, day_str);
+        // Validate the date manually
+        if month >= 1 && month <= 12 && day >= 1 && day <= days_in_month(year, month) {
+            // Format into a string that PostgreSQL recognizes as a valid date
+            let formatted_date = format!("{:04}-{:02}-{:02}", year, month, day);
+            return Some(Cell::String(formatted_date));
+        }
+    }
+    None // Return None if parsing fails
+}
 
-                // Safely parse month and day
-        let month: u32 = month_str.parse::<u32>().ok()? + 1; // Adjust 0-based month
-        let day: u32 = day_str.parse::<u32>().ok()? + 1; // Adjust 0-based day
-
-        // Debugging output to check the parsed values
-        println!("Parsed date: {}-{:02}-{:02}", year, month, day);
-
-        // Safely format the extracted components
-        let formatted_date = format!("{:04}-{:02}-{:02}", year, month, day);
-
-        // Attempt to convert the formatted string to a PostgreSQL-compatible timestamp
-        match time::parse_from_str(&formatted_date, "%Y-%m-%d") {
-            Ok(epoch_microseconds) => Some(Cell::Date(epoch_microseconds)),
-            Err(e) => {
-                eprintln!("Failed to parse date '{}': {}", formatted_date, e);
-                None
+// Function to determine the number of days in a given month
+fn days_in_month(year: i32, month: u32) -> u32 {
+    match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 => {
+            // Check for leap year
+            if (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0) {
+                29
+            } else {
+                28
             }
         }
-    } else {
-        eprintln!("Input did not match expected format: {}", src);
-        None
+        _ => 0, // Invalid month (shouldn't happen if validated earlier)
     }
 }
 
