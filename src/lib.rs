@@ -19,38 +19,25 @@ struct ExampleFdw {
     src_idx: usize,
 }
 fn parse_date_from_interface(date_str: &str) -> Option<Cell> {
-    // Match the custom date format "Date(YYYY,MM,DD)"
-    let re = regex::Regex::new(r"Date\((\d+),(\d+),(\d+)\)").unwrap();
-    if let Some(caps) = re.captures(date_str) {
-        // Parse year, month, and day
-        let year: i32 = caps[1].parse().ok()?;
-        let month: u32 = caps[2].parse().ok()?; // Already 1-based
-        let day: u32 = caps[3].parse().ok()?;
+    // Strip "Date(" and ")" to isolate the date part
+    let clean_date = date_str.trim_start_matches("Date(").trim_end_matches(")");
 
-        // Validate the date manually
-        if month >= 1 && month <= 12 && day >= 1 && day <= days_in_month(year, month) {
-            // Format into a string that PostgreSQL recognizes as a valid date
-            let formatted_date = format!("{:04}-{:02}-{:02}", year, month, day);
-            return Some(Cell::String(formatted_date));
-        }
-    }
-    None // Return None if parsing fails
-}
+    // Define the input format string
+    let fmt = "yyyy,MM,dd";
 
-// Function to determine the number of days in a given month
-fn days_in_month(year: i32, month: u32) -> u32 {
-    match month {
-        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
-        4 | 6 | 9 | 11 => 30,
-        2 => {
-            // Check for leap year
-            if (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0) {
-                29
-            } else {
-                28
+    // Use parse-from-str to parse the date
+    match time::parse_from_str(clean_date, fmt) {
+        Ok(epoch_us) => {
+            // Convert microseconds to seconds
+            let epoch_secs = epoch_us / 1_000_000;
+
+            // Convert back to an RFC3339 string for consistency
+            match time::epoch_ms_to_rfc3339(epoch_secs * 1_000) {
+                Ok(rfc3339) => Some(Cell::String(rfc3339)),
+                Err(_) => None, // Handle errors from RFC3339 conversion
             }
         }
-        _ => 0, // Invalid month (shouldn't happen if validated earlier)
+        Err(_) => None, // Handle parsing errors
     }
 }
 
