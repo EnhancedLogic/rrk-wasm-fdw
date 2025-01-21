@@ -23,7 +23,7 @@ fn parse_date_from_interface(date_str: &str) -> Option<Cell> {
     let formatted_date = date_str
         .trim_start_matches("Date(")
         .trim_end_matches(")")
-        .replace(',', '-')
+        .replace(',', "-")
         + "T00:00:00Z";
 
     match time::parse_from_rfc3339(&formatted_date) {
