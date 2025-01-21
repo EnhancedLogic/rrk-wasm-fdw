@@ -29,7 +29,7 @@ fn parse_date_from_interface(src: &str) -> Option<Cell> {
         let day: u32 = caps[3].parse().ok()?;
 
         // Format the extracted date components into the expected format
-        let formatted_str = format!("Date({},{},{})", year, month, day);
+        let formatted_str = format!("{}-{}-{}", year, month, day);
 
         // Call the interface's parse-from-str function
         let time_result = time::parse_from_str(formatted_str.as_str(), "YYYY-MM-DD");
